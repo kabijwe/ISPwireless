@@ -1,0 +1,286 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Admin Dashboard</title>
+    <script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 20px;
+            background-color: #f4f4f4;
+        }
+        .container {
+            max-width: 1200px;
+            margin: auto;
+        }
+        .section {
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 0 10px rgba(0,0,0,0.1);
+            margin-bottom: 20px;
+        }
+        h2 {
+            margin-top: 0;
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 10px;
+        }
+        th, td {
+            border: 1px solid #ddd;
+            padding: 8px;
+            text-align: left;
+        }
+        th {
+            background-color: #f2f2f2;
+        }
+        .form-group {
+            margin-bottom: 15px;
+        }
+        label {
+            display: block;
+            margin-bottom: 5px;
+        }
+        input, select {
+            width: 100%;
+            padding: 8px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+        }
+        button {
+            padding: 10px;
+            background-color: #007bff;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+        button:hover {
+            background-color: #0056b3;
+        }
+        .error {
+            color: red;
+            margin-bottom: 10px;
+        }
+        .logout-btn {
+            position: fixed;
+            top: 10px;
+            right: 10px;
+            padding: 5px 10px;
+            background-color: #dc3545;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+        .logout-btn:hover {
+            background-color: #c82333;
+        }
+        .dashboard-btn {
+            position: fixed;
+            top: 10px;
+            right: 120px;
+            padding: 5px 10px;
+            background-color: #007bff;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+        .dashboard-btn:hover {
+            background-color: #0056b3;
+        }
+        .search-bar {
+            margin-bottom: 15px;
+        }
+        .search-bar input {
+            width: 100%;
+            padding: 8px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+        }
+    </style>
+</head>
+<body>
+    <button class="logout-btn" onclick="window.location.href='/admin/logout'">Logout</button>
+    <button class="dashboard-btn" onclick="window.location.href='/'">Return to Dashboard</button>
+    <div class="container">
+        <div class="section">
+            <h2>Add New Entry</h2>
+            {% if error %}
+                <p class="error">{{ error }}</p>
+            {% endif %}
+            <form id="add-entry-form">
+                <div class="form-group">
+                    <label for="sm_ip">SM IP</label>
+                    <input type="text" id="sm_ip" name="sm_ip" required>
+                </div>
+                <div class="form-group">
+                    <label for="ap_name">AP Name</label>
+                    <input type="text" id="ap_name" name="ap_name">
+                </div>
+                <div class="form-group">
+                    <label for="ap_ip">AP IP</label>
+                    <input type="text" id="ap_ip" name="ap_ip">
+                </div>
+                <div class="form-group">
+                    <label for="cid">CID</label>
+                    <input type="text" id="cid" name="cid">
+                </div>
+                <div class="form-group">
+                    <label for="org_name">Device Name</label>
+                    <input type="text" id="org_name" name="org_name">
+                </div>
+                <div class="form-group">
+                    <label for="location">Location</label>
+                    <select id="location" name="location" required>
+                        <option value="">Select Location</option>
+                        {% for loc in locations %}
+                            <option value="{{ loc }}">{{ loc }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <button type="submit">Add Entry</button>
+            </form>
+        </div>
+        <div class="section">
+            <h2>Manage Entries</h2>
+            <div class="search-bar">
+                <input type="text" id="search-input" placeholder="Search by SM IP, Device Name, or Location">
+            </div>
+            <table>
+                <thead>
+                    <tr>
+                        <th>AP Name</th>
+                        <th>AP IP</th>
+                        <th>CID</th>
+                        <th>SM IP</th>
+                        <th>Device Name</th>
+                        <th>Location</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody id="entries-table">
+                    {% for record in records %}
+                        <tr class="entry-row">
+                            <td>{{ record.get('AP Name', 'N/A') }}</td>
+                            <td>{{ record.get('AP IP', 'N/A') }}</td>
+                            <td>{{ record.get('CID', 'N/A') }}</td>
+                            <td>{{ record.get('SM IP', 'N/A') }}</td>
+                            <td>{{ record.get('Device Name', 'N/A') }}</td>
+                            <td>{{ record.get('Location', 'N/A') }}</td>
+                            <td>
+                                <button onclick="editEntry('{{ record.get('SM IP') }}')">Edit</button>
+                                <button onclick="deleteEntry('{{ record.get('SM IP') }}')">Delete</button>
+                            </td>
+                        </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+    <script>
+        $(document).ready(function() {
+            $('#add-entry-form').submit(function(e) {
+                e.preventDefault();
+                const data = {
+                    sm_ip: $('#sm_ip').val(),
+                    ap_name: $('#ap_name').val(),
+                    ap_ip: $('#ap_ip').val(),
+                    cid: $('#cid').val(),
+                    org_name: $('#org_name').val(),
+                    location: $('#location').val()
+                };
+                $.ajax({
+                    url: '/admin/add_entry',
+                    type: 'POST',
+                    contentType: 'application/json',
+                    data: JSON.stringify(data),
+                    success: function(response) {
+                        alert(response.success || 'Entry added');
+                        location.reload();
+                    },
+                    error: function(xhr) {
+                        alert(xhr.responseJSON.error || 'Error adding entry');
+                    }
+                });
+            });
+
+            $('#search-input').on('input', function() {
+                const query = $(this).val().toLowerCase();
+                $('.entry-row').each(function() {
+                    const row = $(this);
+                    const sm_ip = row.find('td').eq(3).text().toLowerCase();
+                    const device_name = row.find('td').eq(4).text().toLowerCase();
+                    const location = row.find('td').eq(5).text().toLowerCase();
+                    if (sm_ip.includes(query) || device_name.includes(query) || location.includes(query)) {
+                        row.show();
+                    } else {
+                        row.hide();
+                    }
+                });
+            });
+        });
+
+        function editEntry(sm_ip) {
+            const row = $(`tr:contains(${sm_ip})`);
+            const data = {
+                sm_ip: sm_ip,
+                ap_name: row.find('td').eq(0).text(),
+                ap_ip: row.find('td').eq(1).text(),
+                ap_mac: row.find('td').eq(2).text(),
+                org_name: row.find('td').eq(4).text(),
+                sm_mac: row.find('td').eq(5).text(),
+                location: row.find('td').eq(6).text()
+            };
+            const form = $('#add-entry-form');
+            $('#sm_ip').val(data.sm_ip).prop('disabled', true);
+            $('#ap_name').val(data.ap_name);
+            $('#ap_ip').val(data.ap_ip);
+            $('#ap_mac').val(data.ap_mac);
+            $('#org_name').val(data.org_name);
+            $('#sm_mac').val(data.sm_mac);
+            $('#location').val(data.location);
+            form.off('submit').submit(function(e) {
+                e.preventDefault();
+                $.ajax({
+                    url: '/admin/update_entry',
+                    type: 'POST',
+                    contentType: 'application/json',
+                    data: JSON.stringify(data),
+                    success: function(response) {
+                        alert(response.success || 'Entry updated');
+                        location.reload();
+                    },
+                    error: function(xhr) {
+                        alert(xhr.responseJSON.error || 'Error updating entry');
+                    }
+                });
+            });
+        }
+
+        function deleteEntry(sm_ip) {
+            if (confirm('Are you sure you want to delete this entry?')) {
+                $.ajax({
+                    url: '/admin/delete_entry',
+                    type: 'POST',
+                    contentType: 'application/json',
+                    data: JSON.stringify({ sm_ip: sm_ip }),
+                    success: function(response) {
+                        alert(response.success || 'Entry deleted');
+                        location.reload();
+                    },
+                    error: function(xhr) {
+                        alert(xhr.responseJSON.error || 'Error deleting entry');
+                    }
+                });
+            }
+        }
+    </script>
+</body>
+</html>
